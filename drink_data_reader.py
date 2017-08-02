@@ -1,6 +1,8 @@
 import psycopg2
 import re
 import tensorflow as tf
+from tensorflow.python.platform import gfile
+import os
 
 _WORD_SPLIT = re.compile("([.,!?\"':;)(])")
 
@@ -8,6 +10,8 @@ _PAD = "_PAD"
 _GO = "_GO"
 _EOS = "_EOS"
 _START_VOCAB = [_PAD, _GO, _EOS]
+
+DB_CONN = 'postgresql://localhost:5432/briansomes'
 
 
 class DrinkDataReader(object):
@@ -52,7 +56,7 @@ class DrinkDataReader(object):
     def vocab_matching(self):
         words = self.name_vocabulary()
         words = [tf.compat.as_bytes(line.strip()) for line in words]
-        vocab = dict([(x, y) for (y, x) in enumerate(words)])
+        vocab = { x : y for (y, x) in enumerate(words)}
         return vocab, words
 
 
@@ -62,9 +66,19 @@ def tokenizer(sentence):
         words.extend(_WORD_SPLIT.split(fragment))
     return [w for w in words if w]
 
+def all_words(data_path='~/TrainDrinkNames/vocabulary.txt'):
+    if not os.path.exists(data_path):
+        reader = DrinkDataReader(DB_CONN)
+        vocab = reader.vocab_matching()[-1]
+        with gfile.GFile(data_path, mode='wb') as vocab_file:
+            for w in vocab:
+                vocab_file.write(w + 'b\n')
+        return vocab
+
+
 
 def main():
-    reader = DrinkDataReader("postgresql://localhost:5432/briansomes")
+    reader = DrinkDataReader(DB_CONN)
     print (reader.vocab_matching())
     print(reader.all_drink_data())
 
