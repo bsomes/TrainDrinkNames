@@ -56,6 +56,16 @@ class DrinkDataReader(object):
         return list(set(words))
 
 
+    def all_ingredients(self):
+        conn = psycopg2.connect(self.connection_string)
+        cur = conn.cursor()
+        cur.execute("SELECT id from baseingredients")
+        ids = [id for id in cur]
+        cur.close()
+        conn.close()
+        return ids
+
+
 def vocab_matching(words):
     words = _START_VOCAB + [tf.compat.as_bytes(line.strip()) for line in words]
     vocab = { x : y for (y, x) in enumerate(words)}
@@ -98,9 +108,6 @@ def main():
     print(vocabulary)
     print([name_to_ids(name, vocabulary) for name in data.keys()])
     print([name for name in data.keys()])
-    #reader = DrinkDataReader(DB_CONN)
-    #print (reader.vocab_matching())
-    #print(reader.all_drink_data())
 
 
 if __name__ == '__main__':
