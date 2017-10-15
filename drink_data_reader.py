@@ -65,6 +65,15 @@ class DrinkDataReader(object):
         conn.close()
         return ids
 
+    def count_all_ingredients(self):
+        conn = psycopg2.connect(self.connection_string)
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(id) from baseingredients")
+        count = [res[1] for res in cur]
+        cur.close()
+        conn.close()
+        return count[0]
+
 
 def vocab_matching(words):
     words = _START_VOCAB + [tf.compat.as_bytes(line.strip()) for line in words]
