@@ -53,13 +53,12 @@ class Model(object):
                     dtype)
             softmax_loss_function = sampled_loss
 
-        if num_layers > 1:
-            cell = tf.contrib.MultiRNNCell([tf.contrib.rnn.GRUCell(size) for _ in range(num_layers)])
-        else:
-            cell = tf.contrib.rnn.GRUCell(size)
-
 
         def seq2seq_f(encoder_inputs, decoder_inputs, do_decode):
+            if num_layers > 1:
+                cell = tf.contrib.rnn.MultiRNNCell([tf.contrib.rnn.GRUCell(size) for _ in range(num_layers)])
+            else:
+                cell = tf.contrib.rnn.GRUCell(size)
             return tf.contrib.legacy_seq2seq.embedding_attention_seq2seq(
                 encoder_inputs,
                 decoder_inputs,
@@ -86,7 +85,7 @@ class Model(object):
 
 
         if forward_only:
-            self.outputs, self.losses = tf.contrib.legacy_seq2se.model_with_buckets(
+            self.outputs, self.losses = tf.contrib.legacy_seq2seq.model_with_buckets(
                 self.encoder_inputs, self.decoder_inputs, targets, self.target_weights, buckets,
                 lambda x, y: seq2seq_f(x, y, True),
                 softmax_loss_function=softmax_loss_function
@@ -99,7 +98,11 @@ class Model(object):
                     ]
         else:
             self.outputs, self.losses = tf.contrib.legacy_seq2seq.model_with_buckets(
-                self.encoder_inputs, self.decoder_inputs, targets, self.target_weights, buckets,
+                self.encoder_inputs,
+                self.decoder_inputs,
+                targets,
+                self.target_weights,
+                buckets,
                 lambda x, y: seq2seq_f(x, y, False),
                 softmax_loss_function=softmax_loss_function
             )
@@ -161,29 +164,29 @@ class Model(object):
         for _ in range(self.batch_size):
             encoder_input, decoder_input = random.choice(data[bucket_id])
             encoder_pad = [reader._PAD_ID]  * (encoder_size - len(encoder_input))
-            encoder_inputs.append((list(reversed(encoder_input + encoder_pad))))
+            encoder_inputs.append(list(reversed(encoder_input + encoder_pad)))
             decoder_pad_size = decoder_size - len(decoder_input) - 1
-            decoder_inputs.append([reader._GO_ID] + decoder_input + [reader._PAD_ID] + decoder_pad_size)
+            decoder_inputs.append([reader._GO_ID] + decoder_input + [reader._PAD_ID] * decoder_pad_size)
 
-            batch_encoder_inputs, batch_decoder_inputs, batch_weights = [], [], []
+        batch_encoder_inputs, batch_decoder_inputs, batch_weights = [], [], []
 
-            for ind in range(encoder_size):
-                batch_encoder_inputs.append(
-                    np.array([encoder_inputs[batch_idx][ind]
-                              for batch_idx in range(self.batch_size)], dtype=np.int32)
-                )
+        for ind in range(encoder_size):
+            batch_encoder_inputs.append(
+                np.array([encoder_inputs[batch_idx][ind]
+                          for batch_idx in range(self.batch_size)], dtype=np.int32)
+            )
 
-            for ind in range(decoder_size):
-                batch_decoder_inputs.append(
-                    np.array([encoder_inputs[batch_idx][ind]
-                              for batch_idx in range(self.batch_size)], dtype=np.int32)
-                )
+        for ind in range(decoder_size):
+            batch_decoder_inputs.append(
+                np.array([decoder_inputs[batch_idx][ind]
+                          for batch_idx in range(self.batch_size)], dtype=np.int32)
+            )
 
-                batch_weight = np.ones(self.batch_size, dtype=np.float32)
-                for batch_idx in range(self.batch_size):
-                    if ind < decoder_size - 1:
-                        target = decoder_inputs[batch_idx][ind + 1]
-                    if ind == decoder_size - 1 or target == reader._PAD_ID:
-                        batch_weight[batch_idx] = 0.0
+            batch_weight = np.ones(self.batch_size, dtype=np.float32)
+            for batch_idx in range(self.batch_size):
+                if ind < decoder_size - 1:
+                    target = decoder_inputs[batch_idx][ind + 1]
+                if ind == decoder_size - 1 or target == reader._PAD_ID:
+                    batch_weight[batch_idx] = 0.0
             batch_weights.append(batch_weight)
         return batch_encoder_inputs, batch_decoder_inputs, batch_weights

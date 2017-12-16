@@ -109,12 +109,22 @@ def name_to_ids(name, vocabulary):
     return [vocabulary.get(tf.compat.as_bytes(w)) for w in words]
 
 
+def prepare_data():
+    reader = DrinkDataReader(DB_CONN)
+    data = reader.all_drink_data()
+    vocabulary, _ = vocab_matching(all_words())
+    to_data = [name_to_ids(name, vocabulary) for name in data.keys()]
+    from_data = [ingredients for ingredients in data.values()]
+    return from_data, to_data
+
+
 def main():
     reader = DrinkDataReader(DB_CONN)
     data = reader.all_drink_data()
     print(data)
     vocabulary, words = vocab_matching(all_words())
     print(vocabulary)
+    print(len(vocabulary))
     print([name_to_ids(name, vocabulary) for name in data.keys()])
     print([name for name in data.keys()])
 
